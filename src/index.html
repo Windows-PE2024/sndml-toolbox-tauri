@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SNDML工具箱 by @Windows-PE</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; font-family: "Segoe UI", "Microsoft YaHei", sans-serif; transition: background-color 0.3s, color 0.3s; }
+    body { display: flex; background-color: #1e1e1e; color: #f0f0f0; }
+    .sidebar { width: 60px; background-color: #252526; display: flex; flex-direction: column; align-items: center; padding-top: 10px; border-right: 1px solid #3c3c3c; transition: background-color 0.3s, border-color 0.3s; z-index: 10; }
+    .sidebar .item { display: flex; align-items: center; margin: 16px 0; cursor: pointer; position: relative; }
+    .sidebar .item .highlight { width: 4px; height: 24px; background-color: #0e639c; border-radius: 2px; margin-right: 8px; opacity: 0; transition: opacity 0.2s; }
+    .sidebar .item.active .highlight { opacity: 1; }
+    .sidebar .icon { width: 32px; height: 32px; fill: #ffffff; transition: fill 0.2s; }
+    .sidebar .item.active .icon, .sidebar .item:hover .icon { fill: #0e639c; }
+    .sidebar .spacer { flex: 1; }
+    .main-area { flex: 1; display: flex; flex-direction: column; }
+    .top-bar { height: 48px; display: flex; align-items: center; padding: 0 20px; border-bottom: 1px solid #3c3c3c; font-size: 18px; background-color: #1e1e1e; transition: background-color 0.3s, border-color 0.3s; }
+    .content-container { flex: 1; position: relative; }
+    .content { position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; background-color: #1e1e1e; text-align: center; transition: opacity 0.3s, background-color 0.3s; padding: 20px; overflow-y: auto; }
+    .content.hidden { opacity: 0; pointer-events: none; }
+    #date, div[style*="color:#a0a0a0"] { color: #a0a0a0; }
+    .download-grid { display: flex; flex-direction: column; gap: 20px; width: 80%; max-width: 600px; }
+    .download-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .label { font-size: 20px; font-weight: bold; }
+    .button-link { background-color: #0e639c; color: white; padding: 10px 20px; text-decoration: none; border-radius: 8px; display: inline-block; }
+    .pw-generator { text-align: left; max-width: 400px; width: 100%; }
+    .pw-generator h2 { color: #fff; margin-bottom: 16px; transition: color 0.3s; }
+    .pw-generator .options { margin-bottom: 16px; }
+    .pw-generator .options label { display: block; margin-bottom: 8px; font-size: 16px; }
+    .pw-generator input[type="number"] { width: 80px; padding: 4px; margin-left: 8px; }
+    .pw-generator button { margin-top: 12px; padding: 8px 16px; border: none; border-radius: 6px; background-color: #0e639c; color: #fff; cursor: pointer; font-size: 16px; }
+    .pw-generator .result { margin-top: 16px; word-break: break-all; color: #7ecce6; font-family: monospace; }
+    .settings-section { text-align: left; width: 80%; max-width: 400px; }
+    .settings-section h2 { margin-bottom: 16px; }
+    .setting-option { margin-bottom: 12px; font-size: 16px; cursor: pointer; }
+    .setting-option input { margin-right: 8px; vertical-align: middle; }
+
+    .chat-container { display: flex; flex-direction: column; width: 100%; height: 100%; max-width: 800px; }
+    .chat-messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+    .welcome-message { text-align: center; padding: 40px 20px; }
+    .message { max-width: 70%; padding: 12px 16px; border-radius: 12px; word-wrap: break-word; }
+    .message.user { align-self: flex-end; background-color: #0e639c; color: white; }
+    .message.ai { align-self: flex-start; background-color: #3c3c3c; color: #f0f0f0; }
+    .message.ai.typing { opacity: 0.7; }
+    .message.ai.typing::after { content: "..."; animation: typing 1.5s infinite; }
+    @keyframes typing { 0%, 60% { opacity: 1; } 30% { opacity: 0.5; } }
+    .chat-input-container { display: flex; padding: 20px; gap: 12px; border-top: 1px solid #3c3c3c; }
+    .chat-input-container input { flex: 1; padding: 12px 16px; border: 1px solid #3c3c3c; border-radius: 8px; background-color: #2d2d2d; color: #f0f0f0; font-size: 16px; }
+    .chat-input-container input:focus { outline: none; border-color: #0e639c; }
+    .chat-input-container button { padding: 12px 24px; background-color: #0e639c; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; }
+    .chat-input-container button:hover { background-color: #1177bb; }
+    .chat-input-container button:disabled { background-color: #555; cursor: not-allowed; }
+
+    /* 番茄钟样式 */
+    .pomodoro-container { text-align: center; }
+    #pomodoro-timer { font-size: 100px; font-weight: bold; margin: 20px 0; font-family: 'Courier New', Courier, monospace; }
+    #pomodoro-status { font-size: 22px; color: #a0a0a0; margin-bottom: 20px; }
+    .pomodoro-settings { display: flex; justify-content: center; align-items: center; gap: 30px; margin-bottom: 25px; flex-wrap: wrap; }
+    .duration-setting { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+    .duration-setting label { font-size: 14px; color: #a0a0a0; }
+    .duration-setting input { width: 80px; padding: 8px; background-color: #2d2d2d; color: #f0f0f0; border: 1px solid #3c3c3c; border-radius: 6px; text-align: center; font-size: 16px; }
+    .pomodoro-controls button { background-color: #0e639c; color: white; padding: 12px 28px; text-decoration: none; border-radius: 8px; border: none; cursor: pointer; font-size: 18px; margin: 0 10px; transition: background-color 0.2s; }
+    .pomodoro-controls button:hover { background-color: #1177bb; }
+    .pomodoro-controls button#pomodoro-pause { background-color: #c0a000; }
+    .pomodoro-controls button#pomodoro-pause:hover { background-color: #d4b400; }
+    #pomodoro-content:fullscreen { background-color: #1e1e1e !important; }
+    #pomodoro-content:fullscreen #pomodoro-timer { font-size: 16vw; }
+    #pomodoro-content:fullscreen #pomodoro-status { font-size: 3vw; }
+    
+    body.light-mode .message.ai { background-color: #f0f0f0; color: #1e1e1e; }
+    body.light-mode .chat-input-container { border-top: 1px solid #dcdcdc; }
+    body.light-mode .chat-input-container input { background-color: #ffffff; color: #1e1e1e; border-color: #dcdcdc; }
+
+    body.light-mode { background-color: #fdfdfd; color: #1e1e1e; }
+    body.light-mode .sidebar { background-color: #f0f0f0; border-right: 1px solid #dcdcdc; }
+    body.light-mode .sidebar .icon { fill: #1e1e1e; }
+    body.light-mode .sidebar .item.active .icon, body.light-mode .sidebar .item:hover .icon { fill: #0e639c; }
+    body.light-mode .top-bar { background-color: #fdfdfd; border-bottom: 1px solid #dcdcdc; }
+    body.light-mode .content { background-color: #fdfdfd; }
+    body.light-mode #date, body.light-mode div[style*="color:#a0a0a0"], body.light-mode #pomodoro-status, body.light-mode .duration-setting label { color: #606060; }
+    body.light-mode .pw-generator h2 { color: #1e1e1e; }
+    body.light-mode .pw-generator .result { color: #0e639c; }
+    body.light-mode .label { color: #1e1e1e; }
+    body.light-mode #pomodoro-content:fullscreen { background-color: #fdfdfd !important; }
+    body.light-mode .duration-setting input { background-color: #fff; color: #1e1e1e; border-color: #dcdcdc; }
+    footer { margin-top: 20px; text-align: center; color: #a0a0a0; font-size: 14px; }
+    footer a { color: #0e639c; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="item active" data-type="home"><div class="highlight"></div><svg class="icon" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg></div>
+    <div class="item" data-type="downloads"><div class="highlight"></div><svg class="icon" viewBox="0 0 24 24"><path d="M20 6H4v12h16V6zm-1 11H5V7h14v10zM2 18h20v2H2z"/></svg></div>
+    <div class="item" data-type="tools"><div class="highlight"></div><svg class="icon" viewBox="0 0 24 24"><path d="M22.7 19.3l-6.1-6.1c.2-.6.4-1.3.4-2 0-3.3-2.7-6-6-6-.7 0-1.4.1-2 .4l3.7 3.7-4.2 4.2-3.7-3.7c-.3.6-.4 1.3-.4 2 0 3.3 2.7 6 6 6 .7 0 1.4-.1 2-.4l6.1 6.1c.4.4 1 .4 1.4 0l1.4-1.4c.4-.4.4-1 0-1.4z"/></svg></div>
+    <!-- 更新后的番茄图标 -->
+    <div class="item" data-type="pomodoro"><div class="highlight"></div><svg class="icon" viewBox="0 0 24 24"><path d="M17.5,14H16v-1.5c0-2.25-1.5-4.1-3.5-4.4V4.5h-1V8.1C9.5,8.4,8,10.25,8,12.5V14H6.5C5.12,14,4,15.12,4,16.5S5.12,19,6.5,19h11c1.38,0,2.5-1.12,2.5-2.5S18.88,14,17.5,14z M10,4.5h4V2h-4V4.5z"/></svg></div>
+    <div class="item" data-type="internet"><div class="highlight"></div><svg class="icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg></div>
+    <div class="item" data-type="robot"><div class="highlight"></div><svg class="icon" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/></svg></div>
+    <div class="spacer"></div>
+    <div class="item" data-type="settings"><div class="highlight"></div><svg class="icon" viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .11-.64l-1.92-3.32a.5.5 0 0 0-.61-.22l-2.39.96a7.04 7.04 0 0 0-1.62-.94l-.36-2.54A.5.5 0 0 0 14 2h-4a.5.5 0 0 0-.5.42l-.36 2.54c-.6.24-1.17.56-1.62.94l-2.39-.96a.5.5 0 0 0-.61.22L2.72 8.48a.5.5 0 0 0 .11.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94L2.83 14.6a.5.5 0 0 0-.11.64l1.92 3.32a.5.5 0 0 0 .61.22l2.39-.96c.45.38 1.02.7 1.62.94l.36 2.54c.05.28.28.48.5.48h4c.22 0 .45-.2.5-.48l.36-2.54c.6-.24 1.17-.56 1.62-.94l2.39.96a.5.5 0 0 0 .61-.22l1.92-3.32a.5.5 0 0 0-.11-.64l-2.03-1.58zM12 15.5A3.5 3.5 0 1 1 15.5 12 3.5 3.5 0 0 1 12 15.5z"/></svg></div>
+  </aside>
+
+  <section class="main-area">
+    <header class="top-bar" id="top-bar-title">主页</header>
+    <div class="content-container">
+
+      <div class="content" id="home-content">
+        <div id="clock" style="font-size:64px; margin-bottom:16px;">--:--:--</div>
+        <div id="date" style="font-size:20px; margin-bottom:8px;">--年--月--日</div>
+        <div style="font-size:20px; color:#a0a0a0;">欢迎使用此工具箱，点击左侧边栏查看更多</div>
+      </div>
+      <div class="content hidden" id="downloads-content">
+        <div class="download-grid">
+          <div class="download-row">
+            <div class="label">Windows11下载</div>
+            <a href="https://www.microsoft.com/zh-cn/software-download/windows11?3ffbea20-eb11-4a96-85d6-f356b820d828=True&4cd9df4f-deef-4431-9497-a04303f34986=True" class="button-link" target="_blank">官网下载</a>
+            <a href="https://www.123912.com/s/vi6Kjv-gNuBd?notoken=1" class="button-link" target="_blank">123网盘下载</a>
+          </div>
+          <div class="download-row">
+            <div class="label">Windows10下载</div>
+            <a href="https://www.microsoft.com/zh-cn/software-download/windows10ISO" class="button-link" target="_blank">官网下载</a>
+            <a href="https://www.123912.com/s/vi6Kjv-MNuBd" class="button-link" target="_blank">123网盘下载</a>
+          </div>
+          <div class="download-row">
+            <div class="label">MSDN官网</div>
+            <a href="https://next.itellyou.cn" class="button-link" target="_blank">新</a>
+            <a href="https://msdn.itellyou.cn" class="button-link" target="_blank">旧</a>
+          </div>
+        </div>
+      </div>
+      <div class="content hidden" id="tools-content">
+        <div class="pw-generator">
+          <h2>密码生成器</h2>
+          <div class="options">
+            <label><input type="checkbox" id="opt-uppercase" checked /> 大写字母 (A-Z)</label>
+            <label><input type="checkbox" id="opt-lowercase" checked /> 小写字母 (a-z)</label>
+            <label><input type="checkbox" id="opt-digits" checked /> 数字 (0-9)</label>
+            <label><input type="checkbox" id="opt-symbols" checked /> 特殊字符 (!@%...)</label>
+          </div>
+          <div class="options">
+            <label>位数: <input type="number" id="opt-length" min="1" max="99" value="12" /></label>
+          </div>
+          <button id="generate-btn">生成</button>
+          <div class="result" id="pw-result"></div>
+        </div>
+      </div>
+      <div class="content hidden" id="pomodoro-content">
+          <div class="pomodoro-container">
+              <div id="pomodoro-timer">25:00</div>
+              <div id="pomodoro-status">点击“专注”开始</div>
+              <div class="pomodoro-settings">
+                <div class="duration-setting">
+                    <label for="pomodoro-work-duration">专注时长 (分钟)</label>
+                    <input type="number" id="pomodoro-work-duration" value="25" min="1">
+                </div>
+                <div class="duration-setting">
+                    <label for="pomodoro-break-duration">休息时长 (分钟)</label>
+                    <input type="number" id="pomodoro-break-duration" value="5" min="1">
+                </div>
+              </div>
+              <div class="pomodoro-controls">
+                  <button id="pomodoro-start">专注</button>
+                  <button id="pomodoro-pause">暂停</button>
+                  <button id="pomodoro-reset">重置</button>
+              </div>
+          </div>
+      </div>
+      <div class="content hidden" id="internet-content">
+        <div style="width: 100%; height: 100%; display: flex; justify-content: flex-end; align-items: stretch; padding: 0;">
+          <iframe 
+            src="https://sndml.xyz" 
+            style="width: 100%; height: 100%; border: none; border-radius: 8px; background: #fff;"
+            title="SNDML网站"
+            sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
+            loading="lazy">
+          </iframe>
+        </div>
+      </div>
+      <div class="content hidden" id="robot-content">
+        <div class="chat-container">
+          <div class="chat-messages" id="chat-messages">
+            <div class="welcome-message">
+              <div style="font-size:24px; color:#a0a0a0; margin-bottom:10px;">Dify AI 助手</div>
+              <div style="font-size:16px; color:#a0a0a0;">您好！我是基于Dify AI的智能助手，有什么可以帮助您的吗？</div>
+            </div>
+          </div>
+          <div class="chat-input-container">
+            <input type="text" id="chat-input" placeholder="输入问题..." />
+            <button id="send-btn">发送</button>
+          </div>
+        </div>
+      </div>
+      <div class="content hidden" id="settings-content">
+        <div class="settings-section">
+            <h2>主题设置</h2>
+            <div class="setting-option">
+                <label>
+                    <input type="radio" name="theme" value="dark"> 深色模式
+                </label>
+            </div>
+            <div class="setting-option">
+                <label>
+                    <input type="radio" name="theme" value="light"> 浅色模式
+                </label>
+                <footer>
+                  <p>SNDML工具箱by@Windows-PE<br>
+                  <a href="https://space.bilibili.com/503585538">B站主页</a></p>
+                </footer>
+            </div>
+            </div>
+        </div>
+      </div>
+    </div>
+  </section>
+  
+  <script>
+    // Dify API 配置
+    const DIFY_API_KEY = '';
+    const DIFY_API_URL = 'https://api.dify.ai/v1/chat-messages';
+    
+    // 用于存储对话ID
+    let conversationId = null;
+
+    const items = document.querySelectorAll('.sidebar .item');
+    const contents = {
+      home: document.getElementById('home-content'),
+      downloads: document.getElementById('downloads-content'),
+      tools: document.getElementById('tools-content'),
+      pomodoro: document.getElementById('pomodoro-content'), 
+      internet: document.getElementById('internet-content'),
+      robot: document.getElementById('robot-content'),
+      settings: document.getElementById('settings-content')
+    };
+    const topBar = document.getElementById('top-bar-title');
+    const pageTitles = {
+        home: '主页',
+        downloads: '系统镜像',
+        tools: '工具',
+        pomodoro: '番茄钟',
+        internet: '官网',
+        robot: 'AI助手',
+        settings: '设置'
+    };
+
+    items.forEach(item => {
+      item.addEventListener('click', () => {
+        const type = item.dataset.type;
+        items.forEach(i => i.classList.remove('active'));
+        item.classList.add('active');
+        Object.values(contents).forEach(c => c.classList.add('hidden'));
+        if (contents[type]) {
+          contents[type].classList.remove('hidden');
+          topBar.textContent = pageTitles[type] || '主页';
+        }
+      });
+    });
+
+    function updateClock() {
+      const now = new Date();
+      const pad = n => String(n).padStart(2, '0');
+      document.getElementById('clock').textContent = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+      document.getElementById('date').textContent = `${now.getFullYear()}年${pad(now.getMonth()+1)}月${pad(now.getDate())}日`;
+    }
+    updateClock(); 
+    setInterval(updateClock, 1000);
+
+    document.getElementById('generate-btn').addEventListener('click', () => {
+      const upper = document.getElementById('opt-uppercase').checked;
+      const lower = document.getElementById('opt-lowercase').checked;
+      const digits = document.getElementById('opt-digits').checked;
+      const symbols = document.getElementById('opt-symbols').checked;
+      const length = parseInt(document.getElementById('opt-length').value, 10) || 0;
+      let pool = '';
+      if (upper) pool += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+      if (lower) pool += 'abcdefghijklmnopqrstuvwxyz';
+      if (digits) pool += '0123456789';
+      if (symbols) pool += '!@#$%^&*()_+~`|}{[]:;?><,./-=';
+      if (!pool || length < 1 || length > 99) {
+        document.getElementById('pw-result').textContent = '请正确选择字符类型与位数';
+        return;
+      }
+      let pw = '';
+      for (let i = 0; i < length; i++) {
+        pw += pool.charAt(Math.floor(Math.random() * pool.length));
+      }
+      document.getElementById('pw-result').textContent = pw;
+    });
+    
+    const themeRadios = document.querySelectorAll('input[name="theme"]');
+
+    function applyTheme(theme) {
+      if (theme === 'light') {
+        document.body.classList.add('light-mode');
+        const lightRadio = document.querySelector('input[name="theme"][value="light"]');
+        if(lightRadio) lightRadio.checked = true;
+      } else {
+        document.body.classList.remove('light-mode');
+        const darkRadio = document.querySelector('input[name="theme"][value="dark"]');
+        if(darkRadio) darkRadio.checked = true;
+      }
+    }
+
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    applyTheme(savedTheme);
+
+    themeRadios.forEach(radio => {
+      radio.addEventListener('change', (event) => {
+        const selectedTheme = event.target.value;
+        localStorage.setItem('theme', selectedTheme);
+        applyTheme(selectedTheme);
+      });
+    });
+
+    // --- 番茄钟功能逻辑 ---
+    const pomodoroTimerEl = document.getElementById('pomodoro-timer');
+    const pomodoroStatusEl = document.getElementById('pomodoro-status');
+    const startBtn = document.getElementById('pomodoro-start');
+    const pauseBtn = document.getElementById('pomodoro-pause');
+    const resetBtn = document.getElementById('pomodoro-reset');
+    const pomodoroContentEl = document.getElementById('pomodoro-content');
+    const workDurationInput = document.getElementById('pomodoro-work-duration');
+    const breakDurationInput = document.getElementById('pomodoro-break-duration');
+
+    let timerInterval = null;
+    let remainingTime;
+    let isPaused = true;
+    let isWorkSession = true;
+
+    function formatTime(seconds) {
+        const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
+        const secs = (seconds % 60).toString().padStart(2, '0');
+        return `${mins}:${secs}`;
+    }
+
+    function updateDisplay() {
+        pomodoroTimerEl.textContent = formatTime(remainingTime);
+    }
+    
+    function enterFullscreen() {
+        if (pomodoroContentEl.requestFullscreen) {
+            pomodoroContentEl.requestFullscreen().catch(err => console.error(err));
+        }
+    }
+
+    function exitFullscreen() {
+        if (document.fullscreenElement && document.exitFullscreen) {
+            document.exitFullscreen();
+        }
+    }
+
+    function startTimer() {
+        if (isPaused) {
+            isPaused = false;
+            if (isWorkSession) {
+                enterFullscreen(); 
+                pomodoroStatusEl.textContent = "保持专注...";
+            } else {
+                pomodoroStatusEl.textContent = "休息一下...";
+            }
+            
+            timerInterval = setInterval(() => {
+                remainingTime--;
+                updateDisplay();
+
+                if (remainingTime < 0) {
+                    clearInterval(timerInterval);
+                    isWorkSession = !isWorkSession;
+                    
+                    if(isWorkSession) {
+                        remainingTime = (parseInt(workDurationInput.value, 10) || 25) * 60;
+                        pomodoroStatusEl.textContent = "休息结束！点击“专注”开始下一轮";
+                    } else {
+                        remainingTime = (parseInt(breakDurationInput.value, 10) || 5) * 60;
+                        pomodoroStatusEl.textContent = "专注结束！点击“专注”开始休息";
+                    }
+
+                    isPaused = true;
+                    updateDisplay();
+                    exitFullscreen(); 
+                    new Audio('https://www.soundjay.com/buttons/sounds/button-16.mp3').play();
+                }
+            }, 1000);
+        }
+    }
+
+    function pauseTimer() {
+        isPaused = true;
+        clearInterval(timerInterval);
+        exitFullscreen(); 
+        pomodoroStatusEl.textContent = "已暂停";
+    }
+
+    function resetTimer() {
+        pauseTimer(); 
+        isWorkSession = true;
+        remainingTime = (parseInt(workDurationInput.value, 10) || 25) * 60;
+        updateDisplay();
+        pomodoroStatusEl.textContent = "点击“专注”开始";
+    }
+    
+    workDurationInput.addEventListener('change', () => {
+        if (isPaused && isWorkSession) {
+            resetTimer();
+        }
+    });
+
+    startBtn.addEventListener('click', startTimer);
+    pauseBtn.addEventListener('click', pauseTimer);
+    resetBtn.addEventListener('click', resetTimer);
+
+    // 初始化番茄钟状态
+    resetTimer();
+    // --- 番茄钟功能逻辑结束 ---
+
+
+    // Chat functionality with Dify AI
+    const chatInput = document.getElementById('chat-input');
+    const sendBtn = document.getElementById('send-btn');
+    const chatMessages = document.getElementById('chat-messages');
+
+    function addMessage(content, isUser = false) {
+      const messageDiv = document.createElement('div');
+      messageDiv.className = `message ${isUser ? 'user' : 'ai'}`;
+      messageDiv.textContent = content;
+      chatMessages.appendChild(messageDiv);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+      return messageDiv;
+    }
+
+    function showTypingIndicator() {
+      const typingDiv = document.createElement('div');
+      typingDiv.className = 'message ai typing';
+      typingDiv.textContent = '正在思考中';
+      chatMessages.appendChild(typingDiv);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+      return typingDiv;
+    }
+
+    async function sendToDify(message) {
+      try {
+        const response = await fetch(DIFY_API_URL, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${DIFY_API_KEY}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            inputs: {},
+            query: message,
+            response_mode: 'blocking',
+            conversation_id: conversationId,
+            user: 'user'
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        if (data.conversation_id) {
+          conversationId = data.conversation_id;
+        }
+        
+        return data.answer || '抱歉，我无法理解您的问题。';
+      } catch (error) {
+        console.error('Dify API 错误:', error);
+        return '抱歉，连接AI服务时出现错误，请稍后再试。';
+      }
+    }
+
+    async function sendMessage() {
+      const message = chatInput.value.trim();
+      if (!message) return;
+      
+      chatInput.disabled = true;
+      sendBtn.disabled = true;
+      
+      const welcomeMessage = chatMessages.querySelector('.welcome-message');
+      if (welcomeMessage) {
+        welcomeMessage.remove();
+      }
+      
+      addMessage(message, true);
+      chatInput.value = '';
+      
+      const typingIndicator = showTypingIndicator();
+      
+      try {
+        const response = await sendToDify(message);
+        typingIndicator.remove();
+        addMessage(response, false);
+      } catch (error) {
+        typingIndicator.remove();
+        addMessage('抱歉，服务暂时不可用，请稍后再试。', false);
+      } finally {
+        chatInput.disabled = false;
+        sendBtn.disabled = false;
+        chatInput.focus();
+      }
+    }
+
+    sendBtn.addEventListener('click', sendMessage);
+    chatInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter' && !chatInput.disabled) {
+        sendMessage();
+      }
+    });
+  </script>
+</body>
+</html>
